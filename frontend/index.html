@@ -1,0 +1,675 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Limpador de Metadados — Instagram</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0: #05070c;
+    --bg-1: #0b0f18;
+    --bg-2: #10151f;
+    --bg-3: #161c29;
+    --border: rgba(148, 163, 184, 0.14);
+    --border-strong: rgba(148, 163, 184, 0.30);
+    --text-1: #eaeef5;
+    --text-2: #98a2b3;
+    --text-3: #5c6577;
+    --accent: #3ea6ff;
+    --accent-strong: #7fc8ff;
+    --accent-dim: rgba(62, 166, 255, 0.12);
+    --accent-border: rgba(62, 166, 255, 0.35);
+    --success: #34d399;
+    --success-dim: rgba(52, 211, 153, 0.12);
+    --error: #f66565;
+    --error-dim: rgba(246, 101, 101, 0.12);
+    --amber: #f5b955;
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-0);
+    color: var(--text-1);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse 900px 500px at 18% -8%, rgba(62, 166, 255, 0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 10%, rgba(126, 91, 255, 0.06), transparent 55%),
+      var(--bg-0);
+  }
+
+  .grade-fundo {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 46px 46px;
+    -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 20%, black 0%, transparent 72%);
+    mask-image: radial-gradient(ellipse 60% 55% at 50% 20%, black 0%, transparent 72%);
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 64px 20px 48px;
+  }
+
+  header { text-align: center; margin-bottom: 32px; }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 6px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--bg-2);
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--text-2);
+    margin-bottom: 22px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-3);
+    flex-shrink: 0;
+  }
+  .eyebrow[data-estado="online"] .status-dot { background: var(--success); box-shadow: 0 0 0 3px var(--success-dim); }
+  .eyebrow[data-estado="offline"] .status-dot { background: var(--error); box-shadow: 0 0 0 3px var(--error-dim); }
+  .eyebrow[data-estado="verificando"] .status-dot { background: var(--amber); animation: pulsar 1s ease-in-out infinite; }
+
+  @keyframes pulsar {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.75); }
+  }
+
+  h1 {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+    line-height: 1.15;
+  }
+
+  header p {
+    color: var(--text-2);
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 30px;
+    box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.65);
+  }
+
+  .campo-api { margin-bottom: 22px; }
+
+  label.rotulo {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 9px;
+  }
+
+  input[type="url"] {
+    width: 100%;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    color: var(--text-1);
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  input[type="url"]:focus {
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  .dropzone {
+    border: 1.5px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.18s ease, background 0.18s ease;
+    position: relative;
+  }
+  .dropzone:hover { border-color: rgba(148, 163, 184, 0.45); }
+  .dropzone.arrastando {
+    border-color: var(--accent-border);
+    background: var(--accent-dim);
+  }
+  .dropzone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+
+  .dropzone .icone-upload {
+    width: 38px; height: 38px;
+    margin: 0 auto 14px;
+    color: var(--text-2);
+    transition: color 0.18s ease, transform 0.18s ease;
+  }
+  .dropzone.arrastando .icone-upload { color: var(--accent); transform: translateY(-2px); }
+
+  .dropzone .titulo { font-size: 15px; font-weight: 600; color: var(--text-1); margin: 0 0 6px; }
+  .dropzone .sub { font-size: 13px; color: var(--text-3); margin: 0; }
+
+  .lista-arquivos { margin-top: 18px; display: flex; flex-direction: column; gap: 8px; }
+
+  .item-arquivo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    animation: entrar 0.22s ease;
+  }
+  .item-arquivo.saindo { animation: sair 0.16s ease forwards; }
+
+  @keyframes entrar {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes sair {
+    to { opacity: 0; transform: scale(0.96); margin: 0; padding-top: 0; padding-bottom: 0; height: 0; }
+  }
+
+  .thumb {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    object-fit: cover;
+    background: var(--bg-3);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-3);
+    overflow: hidden;
+  }
+  .thumb svg { width: 20px; height: 20px; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .info-arquivo { flex: 1; min-width: 0; }
+  .info-arquivo .nome {
+    font-size: 13.5px; font-weight: 500; color: var(--text-1);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .info-arquivo .meta { font-size: 12px; color: var(--text-3); margin-top: 1px; display: flex; gap: 6px; align-items: center; }
+
+  .pilula-tipo {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 1.5px 6px; border-radius: 5px;
+    background: rgba(148, 163, 184, 0.12); color: var(--text-2);
+  }
+
+  .btn-remover {
+    width: 26px; height: 26px; flex-shrink: 0;
+    border: none; background: transparent; color: var(--text-3);
+    border-radius: 7px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .btn-remover:hover { background: var(--error-dim); color: var(--error); }
+  .btn-remover svg { width: 14px; height: 14px; }
+
+  .resumo-total {
+    font-size: 12.5px; color: var(--text-3); margin-top: 12px; text-align: right;
+    min-height: 16px;
+  }
+
+  .btn-processar {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: #051019;
+    font-family: var(--font-ui);
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-processar:hover:not(:disabled) { background: var(--accent-strong); box-shadow: 0 8px 24px -8px var(--accent-border); }
+  .btn-processar:active:not(:disabled) { transform: scale(0.985); }
+  .btn-processar:disabled {
+    background: var(--bg-3); color: var(--text-3); cursor: not-allowed;
+  }
+  .btn-processar svg { width: 17px; height: 17px; }
+  .girando { animation: girar 0.8s linear infinite; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+
+  .status-box {
+    margin-top: 16px;
+    padding: 13px 15px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    line-height: 1.5;
+    display: none;
+    align-items: flex-start;
+    gap: 10px;
+    border: 1px solid transparent;
+    animation: entrar 0.2s ease;
+  }
+  .status-box.visivel { display: flex; }
+  .status-box.sucesso { background: var(--success-dim); border-color: rgba(52, 211, 153, 0.3); color: #bdf5e0; }
+  .status-box.erro { background: var(--error-dim); border-color: rgba(246, 101, 101, 0.3); color: #ffd3d3; }
+  .status-box svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+  .status-box.sucesso svg { color: var(--success); }
+  .status-box.erro svg { color: var(--error); }
+
+  .status-box .conteudo { flex: 1; }
+
+  .btn-download {
+    display: inline-flex; align-items: center; gap: 7px;
+    margin-top: 10px;
+    padding: 8px 14px;
+    background: rgba(52, 211, 153, 0.16);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    color: #bdf5e0;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .btn-download:hover { background: rgba(52, 211, 153, 0.26); }
+  .btn-download svg { width: 15px; height: 15px; }
+
+  footer {
+    text-align: center;
+    margin-top: 26px;
+    font-size: 12.5px;
+    color: var(--text-3);
+    line-height: 1.7;
+  }
+  footer a {
+    color: var(--text-2);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-strong);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  footer a:hover { color: var(--accent-strong); border-color: var(--accent-border); }
+  footer a svg { width: 12px; height: 12px; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 40px 14px 32px; }
+    h1 { font-size: 24px; }
+    .card { padding: 22px 18px; }
+    .dropzone { padding: 30px 16px; }
+  }
+</style>
+
+<div class="grade-fundo" aria-hidden="true"></div>
+
+<div class="wrap">
+
+  <header>
+    <span class="eyebrow" id="eyebrowApi" data-estado="verificando">
+      <span class="status-dot"></span>
+      <span id="statusLabel">Verificando…</span>
+    </span>
+    <h1>Limpador de Metadados para Instagram</h1>
+    <p>Remove EXIF, GPS, dados do aparelho e outros metadados de fotos e vídeos — mantendo o formato e as dimensões originais do arquivo.</p>
+  </header>
+
+  <div class="card">
+    <div class="campo-api">
+      <label class="rotulo" for="apiUrl">Endereço da API</label>
+      <input type="url" id="apiUrl" value="https://meta-dados.onrender.com" spellcheck="false">
+    </div>
+
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="inputArquivos" multiple accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,image/jpeg,image/png,image/webp,video/mp4,video/quicktime">
+      <svg class="icone-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v10"/>
+        <path d="M7.5 8.5 12 4l4.5 4.5"/>
+        <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
+      </svg>
+      <p class="titulo">Arraste suas fotos ou vídeos aqui, ou clique para escolher</p>
+      <p class="sub">JPG, PNG, WEBP, MP4 ou MOV — até 10 arquivos, 300 MB no total</p>
+    </div>
+
+    <div class="lista-arquivos" id="listaArquivos"></div>
+    <div class="resumo-total" id="resumoTotal"></div>
+
+    <button class="btn-processar" id="btnProcessar" disabled>
+      <span id="labelBotao">Selecione arquivos para começar</span>
+    </button>
+
+    <div class="status-box" id="statusBox"></div>
+  </div>
+
+  <footer>
+    Os arquivos são processados e descartados na hora — nada fica salvo no servidor.<br>
+    <a id="linkDocs" href="https://meta-dados.onrender.com/docs" target="_blank" rel="noopener">
+      Documentação da API
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/><path d="M14 4h6v6"/><path d="M10 14 20 4"/></svg>
+    </a>
+  </footer>
+
+</div>
+
+<script>
+/* ======================================================================
+   1) Indicador de status da API — checa se o endereço configurado
+      responde, com um pequeno debounce ao digitar.
+   ====================================================================== */
+(function () {
+  const input = document.getElementById('apiUrl');
+  const eyebrow = document.getElementById('eyebrowApi');
+  const label = document.getElementById('statusLabel');
+  const linkDocs = document.getElementById('linkDocs');
+  let controle = null;
+  let debounceId = null;
+
+  function definirEstado(estado, texto) {
+    eyebrow.dataset.estado = estado;
+    label.textContent = texto;
+  }
+
+  async function verificar() {
+    const url = (input.value || '').trim().replace(/\/+$/, '');
+    if (linkDocs) linkDocs.href = url ? `${url}/docs` : '#';
+    if (!url) { definirEstado('offline', 'Sem endereço configurado'); return; }
+
+    definirEstado('verificando', 'Verificando…');
+    if (controle) controle.abort();
+    controle = new AbortController();
+    const tempoLimite = setTimeout(() => controle.abort(), 5000);
+
+    try {
+      const resp = await fetch(url + '/', { signal: controle.signal, mode: 'cors' });
+      clearTimeout(tempoLimite);
+      definirEstado(resp.ok ? 'online' : 'offline', resp.ok ? 'API conectada' : 'API respondeu com erro');
+    } catch (e) {
+      clearTimeout(tempoLimite);
+      definirEstado('offline', 'API offline ou inacessível');
+    }
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounceId);
+    debounceId = setTimeout(verificar, 700);
+  });
+
+  verificar();
+})();
+</script>
+
+<script>
+/* ======================================================================
+   2) Lógica funcional: upload, thumbnails, processamento, download.
+      Detecta foto ou vídeo pela extensão — sem seletor de formato.
+   ====================================================================== */
+(function () {
+  const dropzone = document.getElementById('dropzone');
+  const inputArquivos = document.getElementById('inputArquivos');
+  const listaArquivos = document.getElementById('listaArquivos');
+  const resumoTotal = document.getElementById('resumoTotal');
+  const btnProcessar = document.getElementById('btnProcessar');
+  const labelBotao = document.getElementById('labelBotao');
+  const statusBox = document.getElementById('statusBox');
+  const inputApiUrl = document.getElementById('apiUrl');
+
+  const EXTENSOES_IMAGEM = ['jpg', 'jpeg', 'png', 'webp'];
+  const EXTENSOES_VIDEO = ['mp4', 'mov'];
+  const EXTENSOES_VALIDAS = [...EXTENSOES_IMAGEM, ...EXTENSOES_VIDEO];
+  const MAX_ARQUIVOS = 10;
+  const MAX_BYTES = 300 * 1024 * 1024;
+
+  let arquivosSelecionados = [];
+
+  const ICONE_IMAGEM = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-4 4-3-3-5 5"/></svg>`;
+  const ICONE_VIDEO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M10 8.3l6 3.7-6 3.7z" fill="currentColor" stroke="none"/></svg>`;
+  const ICONE_CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>`;
+  const ICONE_ALERTA = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l9.5 16.5H2.5z"/><path d="M12 9.5v4.5"/><circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none"/></svg>`;
+  const ICONE_X = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+  const ICONE_DOWNLOAD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M4 18h16"/></svg>`;
+  const ICONE_SPINNER = `<svg class="girando" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="40 100"/></svg>`;
+
+  function extensaoDe(nome) {
+    return (nome.split('.').pop() || '').toLowerCase();
+  }
+
+  function tipoDoArquivo(nome) {
+    const ext = extensaoDe(nome);
+    if (EXTENSOES_IMAGEM.includes(ext)) return 'imagem';
+    if (EXTENSOES_VIDEO.includes(ext)) return 'video';
+    return null;
+  }
+
+  function formatarTamanho(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function preencherThumbnail(container, arquivo, tipo) {
+    if (tipo === 'imagem') {
+      const url = URL.createObjectURL(arquivo);
+      const img = document.createElement('img');
+      img.src = url;
+      img.onload = () => URL.revokeObjectURL(url);
+      img.onerror = () => { container.innerHTML = ICONE_IMAGEM; URL.revokeObjectURL(url); };
+      container.appendChild(img);
+      return;
+    }
+
+    // vídeo: tenta capturar um frame de verdade; se falhar por qualquer
+    // motivo, o ícone genérico de vídeo já colocado abaixo permanece.
+    container.innerHTML = ICONE_VIDEO;
+    try {
+      const url = URL.createObjectURL(arquivo);
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      video.src = url;
+
+      const limpar = () => URL.revokeObjectURL(url);
+
+      video.addEventListener('loadeddata', () => {
+        try { video.currentTime = Math.min(0.2, (video.duration || 1) / 2); }
+        catch (e) { limpar(); }
+      });
+      video.addEventListener('seeked', () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = 80; canvas.height = 80;
+          const ctx = canvas.getContext('2d');
+          const escala = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+          const w = video.videoWidth * escala, h = video.videoHeight * escala;
+          ctx.drawImage(video, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+          const img = document.createElement('img');
+          img.src = canvas.toDataURL('image/jpeg', 0.7);
+          container.innerHTML = '';
+          container.appendChild(img);
+        } catch (e) { /* mantem o icone generico de video */ }
+        limpar();
+      });
+      video.addEventListener('error', limpar);
+    } catch (e) { /* mantem o icone generico de video */ }
+  }
+
+  function renderizarLista() {
+    listaArquivos.innerHTML = '';
+    arquivosSelecionados.forEach((arquivo, indice) => {
+      const tipo = tipoDoArquivo(arquivo.name);
+      const item = document.createElement('div');
+      item.className = 'item-arquivo';
+
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      thumb.innerHTML = tipo === 'video' ? ICONE_VIDEO : ICONE_IMAGEM;
+      item.appendChild(thumb);
+      preencherThumbnail(thumb, arquivo, tipo);
+
+      const info = document.createElement('div');
+      info.className = 'info-arquivo';
+      info.innerHTML = `
+        <div class="nome">${arquivo.name}</div>
+        <div class="meta">
+          <span class="pilula-tipo">${tipo === 'video' ? 'Vídeo' : 'Foto'}</span>
+          <span>${formatarTamanho(arquivo.size)}</span>
+        </div>`;
+      item.appendChild(info);
+
+      const btnRemover = document.createElement('button');
+      btnRemover.className = 'btn-remover';
+      btnRemover.type = 'button';
+      btnRemover.innerHTML = ICONE_X;
+      btnRemover.addEventListener('click', () => {
+        item.classList.add('saindo');
+        setTimeout(() => {
+          arquivosSelecionados.splice(indice, 1);
+          renderizarLista();
+        }, 140);
+      });
+      item.appendChild(btnRemover);
+
+      listaArquivos.appendChild(item);
+    });
+
+    if (arquivosSelecionados.length === 0) {
+      resumoTotal.textContent = '';
+      btnProcessar.disabled = true;
+      labelBotao.textContent = 'Selecione arquivos para começar';
+    } else {
+      const totalBytes = arquivosSelecionados.reduce((soma, a) => soma + a.size, 0);
+      resumoTotal.textContent = `${arquivosSelecionados.length} arquivo(s) — ${formatarTamanho(totalBytes)} no total`;
+      btnProcessar.disabled = false;
+      labelBotao.textContent = `Processar ${arquivosSelecionados.length} arquivo(s)`;
+    }
+  }
+
+  function adicionarArquivos(lista) {
+    esconderStatus();
+    const candidatos = Array.from(lista);
+    let algumInvalido = false;
+
+    for (const arquivo of candidatos) {
+      if (arquivosSelecionados.length >= MAX_ARQUIVOS) break;
+      const ext = extensaoDe(arquivo.name);
+      if (!EXTENSOES_VALIDAS.includes(ext)) { algumInvalido = true; continue; }
+      arquivosSelecionados.push(arquivo);
+    }
+
+    if (algumInvalido) {
+      mostrarStatus('erro', `Alguns arquivos foram ignorados (extensão não suportada). Use: ${EXTENSOES_VALIDAS.join(', ')}.`);
+    }
+    renderizarLista();
+  }
+
+  function mostrarStatus(tipo, mensagemHtml) {
+    statusBox.className = `status-box visivel ${tipo}`;
+    const icone = tipo === 'sucesso' ? ICONE_CHECK : ICONE_ALERTA;
+    statusBox.innerHTML = `${icone}<div class="conteudo">${mensagemHtml}</div>`;
+  }
+
+  function esconderStatus() {
+    statusBox.className = 'status-box';
+    statusBox.innerHTML = '';
+  }
+
+  dropzone.addEventListener('click', () => inputArquivos.click());
+  inputArquivos.addEventListener('change', (e) => { adicionarArquivos(e.target.files); inputArquivos.value = ''; });
+
+  ['dragenter', 'dragover'].forEach((evento) => {
+    dropzone.addEventListener(evento, (e) => { e.preventDefault(); dropzone.classList.add('arrastando'); });
+  });
+  ['dragleave', 'drop'].forEach((evento) => {
+    dropzone.addEventListener(evento, (e) => { e.preventDefault(); dropzone.classList.remove('arrastando'); });
+  });
+  dropzone.addEventListener('drop', (e) => { if (e.dataTransfer && e.dataTransfer.files) adicionarArquivos(e.dataTransfer.files); });
+
+  function definirCarregando(carregando) {
+    if (carregando) {
+      btnProcessar.disabled = true;
+      labelBotao.innerHTML = `${ICONE_SPINNER}<span>Processando…</span>`;
+    } else {
+      // restaura o rotulo/estado corretos conforme o que sobrou selecionado
+      // (renderizarLista() e a unica fonte de verdade pra isso).
+      renderizarLista();
+    }
+  }
+
+  btnProcessar.addEventListener('click', async () => {
+    if (arquivosSelecionados.length === 0) return;
+    const apiUrl = (inputApiUrl.value || '').trim().replace(/\/+$/, '');
+    if (!apiUrl) { mostrarStatus('erro', 'Preencha o endereço da API antes de processar.'); return; }
+
+    esconderStatus();
+    definirCarregando(true);
+
+    const formData = new FormData();
+    arquivosSelecionados.forEach((arquivo) => formData.append('files', arquivo));
+
+    try {
+      const resp = await fetch(`${apiUrl}/limpar`, { method: 'POST', body: formData });
+
+      if (!resp.ok) {
+        let detalhe = `Erro HTTP ${resp.status}`;
+        try { const corpo = await resp.json(); if (corpo && corpo.detail) detalhe = corpo.detail; } catch (e) {}
+        mostrarStatus('erro', detalhe);
+        return;
+      }
+
+      const blob = await resp.blob();
+      const disposicao = resp.headers.get('Content-Disposition') || '';
+      const match = disposicao.match(/filename="?([^";]+)"?/);
+      const nomeArquivo = match ? match[1] : (blob.type === 'application/zip' ? 'arquivos_limpos.zip' : 'arquivo_limpo');
+
+      const urlBlob = URL.createObjectURL(blob);
+      const plural = arquivosSelecionados.length > 1;
+      mostrarStatus('sucesso', `
+        Pronto! ${plural ? 'Seus arquivos foram limpos e estão prontos' : 'Seu arquivo foi limpo e está pronto'} para baixar.
+        <br>
+        <a class="btn-download" href="${urlBlob}" download="${nomeArquivo}">${ICONE_DOWNLOAD}Baixar ${nomeArquivo}</a>
+      `);
+      arquivosSelecionados = [];
+    } catch (e) {
+      mostrarStatus('erro', `Não foi possível falar com a API em ${apiUrl}. Confirme que o endereço está correto e que o servidor está online.`);
+    } finally {
+      definirCarregando(false);
+    }
+  });
+
+  renderizarLista();
+})();
+</script>
