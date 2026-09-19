@@ -48,6 +48,7 @@
       radial-gradient(ellipse 900px 500px at 18% -8%, rgba(62, 166, 255, 0.10), transparent 60%),
       radial-gradient(ellipse 700px 500px at 100% 10%, rgba(126, 91, 255, 0.06), transparent 55%),
       var(--bg-0);
+    overflow-x: hidden;
   }
 
   .grade-fundo {
@@ -55,13 +56,21 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.55;
+    opacity: 0.4;
     background-image:
       linear-gradient(var(--border) 1px, transparent 1px),
       linear-gradient(90deg, var(--border) 1px, transparent 1px);
     background-size: 46px 46px;
     -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 20%, black 0%, transparent 72%);
     mask-image: radial-gradient(ellipse 60% 55% at 50% 20%, black 0%, transparent 72%);
+  }
+
+  #fundoAnimado {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    display: block;
   }
 
   .wrap {
@@ -81,7 +90,9 @@
     padding: 6px 14px 6px 10px;
     border: 1px solid var(--border-strong);
     border-radius: 999px;
-    background: var(--bg-2);
+    background: rgba(16, 21, 31, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     font-size: 12.5px;
     font-weight: 500;
     letter-spacing: 0.02em;
@@ -122,11 +133,13 @@
   }
 
   .card {
-    background: var(--bg-1);
-    border: 1px solid var(--border);
+    background: rgba(13, 17, 27, 0.66);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid rgba(148, 163, 184, 0.16);
     border-radius: var(--radius-lg);
     padding: 30px;
-    box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.65);
+    box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
 
   .campo-api { margin-bottom: 22px; }
@@ -164,13 +177,14 @@
     padding: 40px 24px;
     text-align: center;
     cursor: pointer;
-    transition: border-color 0.18s ease, background 0.18s ease;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
     position: relative;
   }
   .dropzone:hover { border-color: rgba(148, 163, 184, 0.45); }
   .dropzone.arrastando {
     border-color: var(--accent-border);
     background: var(--accent-dim);
+    transform: scale(1.008);
   }
   .dropzone input[type="file"] {
     position: absolute; inset: 0; opacity: 0; cursor: pointer;
@@ -180,9 +194,9 @@
     width: 38px; height: 38px;
     margin: 0 auto 14px;
     color: var(--text-2);
-    transition: color 0.18s ease, transform 0.18s ease;
+    transition: color 0.2s ease, transform 0.2s ease;
   }
-  .dropzone.arrastando .icone-upload { color: var(--accent); transform: translateY(-2px); }
+  .dropzone.arrastando .icone-upload { color: var(--accent); transform: translateY(-3px); }
 
   .dropzone .titulo { font-size: 15px; font-weight: 600; color: var(--text-1); margin: 0 0 6px; }
   .dropzone .sub { font-size: 13px; color: var(--text-3); margin: 0; }
@@ -193,13 +207,19 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 9px 10px;
+    padding: 10px 10px;
     background: var(--bg-2);
     border: 1px solid var(--border);
+    border-left: 2.5px solid var(--border-strong);
     border-radius: var(--radius-sm);
     animation: entrar 0.22s ease;
+    transition: border-color 0.2s ease, background 0.2s ease;
   }
   .item-arquivo.saindo { animation: sair 0.16s ease forwards; }
+  .item-arquivo.status-enviando { border-left-color: var(--accent); }
+  .item-arquivo.status-concluido { border-left-color: var(--success); }
+  .item-arquivo.status-erro { border-left-color: var(--error); }
+  .item-arquivo.status-cancelado { border-left-color: var(--text-3); opacity: 0.7; }
 
   @keyframes entrar {
     from { opacity: 0; transform: translateY(-4px) scale(0.98); }
@@ -227,23 +247,57 @@
     font-size: 13.5px; font-weight: 500; color: var(--text-1);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .info-arquivo .meta { font-size: 12px; color: var(--text-3); margin-top: 1px; display: flex; gap: 6px; align-items: center; }
+  .info-arquivo .meta { font-size: 12px; color: var(--text-3); margin-top: 1px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 
   .pilula-tipo {
     font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
     padding: 1.5px 6px; border-radius: 5px;
     background: rgba(148, 163, 184, 0.12); color: var(--text-2);
+    flex-shrink: 0;
   }
 
-  .btn-remover {
-    width: 26px; height: 26px; flex-shrink: 0;
+  .status-texto { color: var(--text-3); display: inline-flex; align-items: center; }
+  .status-texto svg { width: 12px; height: 12px; margin-right: 4px; flex-shrink: 0; }
+  .item-arquivo.status-concluido .status-texto { color: var(--success); }
+  .link-tentar-novamente {
+    background: none; border: none; padding: 0; margin: 0;
+    color: var(--error); font-family: inherit; font-size: 12px; font-weight: 600;
+    cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+  }
+
+  .barra-progresso {
+    margin-top: 6px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--bg-3);
+    overflow: hidden;
+    display: none;
+  }
+  .item-arquivo.status-enviando .barra-progresso,
+  .item-arquivo.status-concluido .barra-progresso { display: block; }
+  .barra-preenchimento {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 0.2s ease;
+  }
+  .item-arquivo.status-concluido .barra-preenchimento { background: var(--success); }
+
+  .acoes-item { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+
+  .btn-baixar-item, .btn-remover {
+    width: 28px; height: 28px; flex-shrink: 0;
     border: none; background: transparent; color: var(--text-3);
     border-radius: 7px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: background 0.15s ease, color 0.15s ease;
+    text-decoration: none;
   }
+  .btn-baixar-item { color: var(--success); }
+  .btn-baixar-item:hover { background: var(--success-dim); }
   .btn-remover:hover { background: var(--error-dim); color: var(--error); }
-  .btn-remover svg { width: 14px; height: 14px; }
+  .btn-baixar-item svg, .btn-remover svg { width: 14px; height: 14px; }
 
   .resumo-total {
     font-size: 12.5px; color: var(--text-3); margin-top: 12px; text-align: right;
@@ -290,26 +344,13 @@
   .status-box.visivel { display: flex; }
   .status-box.sucesso { background: var(--success-dim); border-color: rgba(52, 211, 153, 0.3); color: #bdf5e0; }
   .status-box.erro { background: var(--error-dim); border-color: rgba(246, 101, 101, 0.3); color: #ffd3d3; }
+  .status-box.info { background: var(--accent-dim); border-color: var(--accent-border); color: #cfe8ff; }
   .status-box svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
   .status-box.sucesso svg { color: var(--success); }
   .status-box.erro svg { color: var(--error); }
+  .status-box.info svg { color: var(--accent); }
 
   .status-box .conteudo { flex: 1; }
-
-  .btn-download {
-    display: inline-flex; align-items: center; gap: 7px;
-    margin-top: 10px;
-    padding: 8px 14px;
-    background: rgba(52, 211, 153, 0.16);
-    border: 1px solid rgba(52, 211, 153, 0.35);
-    color: #bdf5e0;
-    border-radius: 8px;
-    font-size: 13px; font-weight: 600;
-    text-decoration: none;
-    transition: background 0.15s ease;
-  }
-  .btn-download:hover { background: rgba(52, 211, 153, 0.26); }
-  .btn-download svg { width: 15px; height: 15px; }
 
   footer {
     text-align: center;
@@ -332,9 +373,18 @@
     h1 { font-size: 24px; }
     .card { padding: 22px 18px; }
     .dropzone { padding: 30px 16px; }
+    .btn-baixar-item, .btn-remover { width: 32px; height: 32px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dropzone, .dropzone .icone-upload, .item-arquivo, .btn-processar, .barra-preenchimento {
+      transition: none !important;
+      animation: none !important;
+    }
   }
 </style>
 
+<canvas id="fundoAnimado" aria-hidden="true"></canvas>
 <div class="grade-fundo" aria-hidden="true"></div>
 
 <div class="wrap">
@@ -345,13 +395,13 @@
       <span id="statusLabel">Verificando…</span>
     </span>
     <h1>Limpador de Metadados para Instagram</h1>
-    <p>Remove EXIF, GPS, dados do aparelho e outros metadados de fotos e vídeos — mantendo o formato e as dimensões originais do arquivo.</p>
+    <p>Remove EXIF, GPS, dados do aparelho e outros metadados de fotos e vídeos — mantendo formato, dimensões, qualidade e nome originais do arquivo.</p>
   </header>
 
   <div class="card">
     <div class="campo-api">
       <label class="rotulo" for="apiUrl">Endereço da API</label>
-      <input type="url" id="apiUrl" value="https://meta-jv1p.onrender.com" spellcheck="false">
+      <input type="url" id="apiUrl" value="https://meta-dados.onrender.com" spellcheck="false">
     </div>
 
     <div class="dropzone" id="dropzone">
@@ -362,7 +412,7 @@
         <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
       </svg>
       <p class="titulo">Arraste suas fotos ou vídeos aqui, ou clique para escolher</p>
-      <p class="sub">JPG, PNG, WEBP, MP4 ou MOV — até 10 arquivos, 300 MB no total</p>
+      <p class="sub">JPG, PNG, WEBP, MP4 ou MOV — até 10 arquivos, até 300 MB por arquivo</p>
     </div>
 
     <div class="lista-arquivos" id="listaArquivos"></div>
@@ -377,6 +427,7 @@
 
   <footer>
     Os arquivos são processados e descartados na hora — nada fica salvo no servidor.<br>
+    Vários arquivos? Cada um baixa individualmente, no formato original — nunca em .zip.<br>
     <a id="linkDocs" href="https://meta-dados.onrender.com/docs" target="_blank" rel="noopener">
       Documentação da API
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/><path d="M14 4h6v6"/><path d="M10 14 20 4"/></svg>
@@ -384,6 +435,119 @@
   </footer>
 
 </div>
+
+<script>
+/* ======================================================================
+   0) Fundo animado — pequenos círculos orbitando alguns pontos centrais,
+      um efeito tecnológico discreto atrás do conteúdo (não intercepta
+      cliques, respeita "reduzir movimento" e pausa quando a aba não está
+      visível, pra não gastar bateria/CPU à toa).
+   ====================================================================== */
+(function () {
+  const canvas = document.getElementById('fundoAnimado');
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+  const prefereReduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let largura = 0, altura = 0, dpr = 1;
+  let hubs = [];
+  let quadro = null;
+  let ativo = false;
+
+  function configurarDimensoes() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    largura = window.innerWidth;
+    altura = window.innerHeight;
+    canvas.width = Math.round(largura * dpr);
+    canvas.height = Math.round(altura * dpr);
+    canvas.style.width = largura + 'px';
+    canvas.style.height = altura + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function criarHubs() {
+    const pequena = largura < 640;
+    const numHubs = pequena ? 2 : 3;
+    const aneisPorHub = pequena ? 2 : 3;
+    hubs = [];
+    for (let h = 0; h < numHubs; h++) {
+      const cx = largura * (numHubs === 1 ? 0.5 : (0.16 + h * (0.68 / (numHubs - 1))));
+      const cy = altura * (h % 2 === 0 ? 0.2 : 0.72);
+      const aneis = [];
+      for (let a = 0; a < aneisPorHub; a++) {
+        aneis.push({
+          raio: 44 + a * 32 + h * 5,
+          angulo: Math.random() * Math.PI * 2,
+          velocidade: (0.0007 + a * 0.00035) * (h % 2 === 0 ? 1 : -1),
+          tamanhoPonto: 1.6 + (a % 2) * 0.8,
+        });
+      }
+      hubs.push({ cx, cy, aneis });
+    }
+  }
+
+  function desenhar() {
+    ctx.clearRect(0, 0, largura, altura);
+    hubs.forEach((hub) => {
+      hub.aneis.forEach((anel) => {
+        ctx.beginPath();
+        ctx.arc(hub.cx, hub.cy, anel.raio, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.09)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        const x = hub.cx + Math.cos(anel.angulo) * anel.raio;
+        const y = hub.cy + Math.sin(anel.angulo) * anel.raio;
+        ctx.beginPath();
+        ctx.arc(x, y, anel.tamanhoPonto, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(62, 166, 255, 0.6)';
+        ctx.shadowColor = 'rgba(62, 166, 255, 0.6)';
+        ctx.shadowBlur = 7;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        if (!prefereReduzido) anel.angulo += anel.velocidade;
+      });
+    });
+  }
+
+  function loop() {
+    desenhar();
+    if (ativo && !prefereReduzido) quadro = requestAnimationFrame(loop);
+  }
+
+  function iniciar() {
+    if (ativo) return;
+    ativo = true;
+    if (prefereReduzido) { desenhar(); return; }
+    loop();
+  }
+
+  function parar() {
+    ativo = false;
+    if (quadro) cancelAnimationFrame(quadro);
+    quadro = null;
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) parar(); else iniciar();
+  });
+
+  let redimensionandoId = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(redimensionandoId);
+    redimensionandoId = setTimeout(() => {
+      configurarDimensoes();
+      criarHubs();
+      if (prefereReduzido) desenhar();
+    }, 150);
+  });
+
+  configurarDimensoes();
+  criarHubs();
+  iniciar();
+})();
+</script>
 
 <script>
 /* ======================================================================
@@ -434,8 +598,9 @@
 
 <script>
 /* ======================================================================
-   2) Lógica funcional: upload, thumbnails, processamento, download.
-      Detecta foto ou vídeo pela extensão — sem seletor de formato.
+   2) Lógica funcional: fila de upload com progresso e concorrência
+      controlada, download individual por arquivo (nunca .zip), cancelar,
+      remover e tentar novamente por item.
    ====================================================================== */
 (function () {
   const dropzone = document.getElementById('dropzone');
@@ -451,14 +616,22 @@
   const EXTENSOES_VIDEO = ['mp4', 'mov'];
   const EXTENSOES_VALIDAS = [...EXTENSOES_IMAGEM, ...EXTENSOES_VIDEO];
   const MAX_ARQUIVOS = 10;
-  const MAX_BYTES = 300 * 1024 * 1024;
+  const MAX_BYTES_POR_ARQUIVO = 300 * 1024 * 1024;
+  const MAX_CONCORRENCIA = 3;
+  const MENSAGEM_ARQUIVO_GRANDE = 'Arquivo muito grande. O tamanho máximo permitido é 300 MB.';
 
-  let arquivosSelecionados = [];
+  let filaArquivos = [];
+  let proximoId = 1;
+  let emAndamento = 0;
+  let atrasoProximoDownload = 0;
+  const nosPorId = new Map();
 
   const ICONE_IMAGEM = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-4 4-3-3-5 5"/></svg>`;
   const ICONE_VIDEO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M10 8.3l6 3.7-6 3.7z" fill="currentColor" stroke="none"/></svg>`;
   const ICONE_CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>`;
+  const ICONE_CHECK_PEQUENO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6"/></svg>`;
   const ICONE_ALERTA = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l9.5 16.5H2.5z"/><path d="M12 9.5v4.5"/><circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none"/></svg>`;
+  const ICONE_INFO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 10.5v6"/><circle cx="12" cy="7.3" r="0.6" fill="currentColor" stroke="none"/></svg>`;
   const ICONE_X = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
   const ICONE_DOWNLOAD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M4 18h16"/></svg>`;
   const ICONE_SPINNER = `<svg class="girando" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="40 100"/></svg>`;
@@ -480,6 +653,12 @@
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
+  function escaparHtml(texto) {
+    const div = document.createElement('div');
+    div.textContent = texto;
+    return div.innerHTML;
+  }
+
   function preencherThumbnail(container, arquivo, tipo) {
     if (tipo === 'imagem') {
       const url = URL.createObjectURL(arquivo);
@@ -491,8 +670,6 @@
       return;
     }
 
-    // vídeo: tenta capturar um frame de verdade; se falhar por qualquer
-    // motivo, o ícone genérico de vídeo já colocado abaixo permanece.
     container.innerHTML = ICONE_VIDEO;
     try {
       const url = URL.createObjectURL(arquivo);
@@ -527,78 +704,325 @@
     } catch (e) { /* mantem o icone generico de video */ }
   }
 
+  function criarNoItem(item) {
+    const tipo = tipoDoArquivo(item.arquivo.name);
+    const no = document.createElement('div');
+    no.className = 'item-arquivo';
+    no.dataset.id = String(item.id);
+
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    thumb.innerHTML = tipo === 'video' ? ICONE_VIDEO : ICONE_IMAGEM;
+    no.appendChild(thumb);
+    preencherThumbnail(thumb, item.arquivo, tipo);
+
+    const info = document.createElement('div');
+    info.className = 'info-arquivo';
+    info.innerHTML = `
+      <div class="nome">${escaparHtml(item.arquivo.name)}</div>
+      <div class="meta">
+        <span class="pilula-tipo">${tipo === 'video' ? 'Vídeo' : 'Foto'}</span>
+        <span>${formatarTamanho(item.arquivo.size)}</span>
+        <span class="status-texto"></span>
+      </div>
+      <div class="barra-progresso"><div class="barra-preenchimento"></div></div>
+    `;
+    no.appendChild(info);
+
+    const acoes = document.createElement('div');
+    acoes.className = 'acoes-item';
+
+    const btnBaixar = document.createElement('a');
+    btnBaixar.className = 'btn-baixar-item';
+    btnBaixar.innerHTML = ICONE_DOWNLOAD;
+    btnBaixar.title = 'Baixar arquivo';
+    btnBaixar.style.display = 'none';
+    acoes.appendChild(btnBaixar);
+
+    const btnRemover = document.createElement('button');
+    btnRemover.type = 'button';
+    btnRemover.className = 'btn-remover';
+    btnRemover.innerHTML = ICONE_X;
+    btnRemover.title = 'Remover';
+    btnRemover.addEventListener('click', () => removerItem(item.id));
+    acoes.appendChild(btnRemover);
+
+    no.appendChild(acoes);
+    return no;
+  }
+
+  function atualizarNoItem(item) {
+    const no = nosPorId.get(item.id);
+    if (!no) return;
+    no.className = `item-arquivo status-${item.status}`;
+
+    const statusTexto = no.querySelector('.status-texto');
+    const barra = no.querySelector('.barra-preenchimento');
+    const btnBaixar = no.querySelector('.btn-baixar-item');
+    const btnRemover = no.querySelector('.btn-remover');
+
+    if (item.status === 'pendente') {
+      statusTexto.textContent = 'Pronto para enviar';
+      barra.style.width = '0%';
+    } else if (item.status === 'enviando') {
+      statusTexto.textContent = `Enviando… ${item.progresso}%`;
+      barra.style.width = item.progresso + '%';
+    } else if (item.status === 'concluido') {
+      statusTexto.innerHTML = `${ICONE_CHECK_PEQUENO}Concluído`;
+      barra.style.width = '100%';
+    } else if (item.status === 'erro') {
+      statusTexto.innerHTML = `<button type="button" class="link-tentar-novamente">Erro — tentar novamente</button>`;
+      barra.style.width = '0%';
+      const link = statusTexto.querySelector('.link-tentar-novamente');
+      if (link) {
+        link.title = item.mensagemErro || '';
+        link.addEventListener('click', () => tentarNovamente(item.id));
+      }
+    } else if (item.status === 'cancelado') {
+      statusTexto.textContent = 'Cancelado';
+      barra.style.width = '0%';
+    }
+
+    if (item.status === 'concluido' && item.blobUrl) {
+      btnBaixar.href = item.blobUrl;
+      btnBaixar.download = item.nomeSaida || item.arquivo.name;
+      btnBaixar.style.display = 'inline-flex';
+    } else {
+      btnBaixar.style.display = 'none';
+    }
+
+    btnRemover.title = item.status === 'enviando' ? 'Cancelar envio' : 'Remover';
+  }
+
   function renderizarLista() {
-    listaArquivos.innerHTML = '';
-    arquivosSelecionados.forEach((arquivo, indice) => {
-      const tipo = tipoDoArquivo(arquivo.name);
-      const item = document.createElement('div');
-      item.className = 'item-arquivo';
-
-      const thumb = document.createElement('div');
-      thumb.className = 'thumb';
-      thumb.innerHTML = tipo === 'video' ? ICONE_VIDEO : ICONE_IMAGEM;
-      item.appendChild(thumb);
-      preencherThumbnail(thumb, arquivo, tipo);
-
-      const info = document.createElement('div');
-      info.className = 'info-arquivo';
-      info.innerHTML = `
-        <div class="nome">${arquivo.name}</div>
-        <div class="meta">
-          <span class="pilula-tipo">${tipo === 'video' ? 'Vídeo' : 'Foto'}</span>
-          <span>${formatarTamanho(arquivo.size)}</span>
-        </div>`;
-      item.appendChild(info);
-
-      const btnRemover = document.createElement('button');
-      btnRemover.className = 'btn-remover';
-      btnRemover.type = 'button';
-      btnRemover.innerHTML = ICONE_X;
-      btnRemover.addEventListener('click', () => {
-        item.classList.add('saindo');
-        setTimeout(() => {
-          arquivosSelecionados.splice(indice, 1);
-          renderizarLista();
-        }, 140);
-      });
-      item.appendChild(btnRemover);
-
-      listaArquivos.appendChild(item);
+    const idsAtuais = new Set(filaArquivos.map((i) => i.id));
+    for (const [id, no] of Array.from(nosPorId.entries())) {
+      if (!idsAtuais.has(id)) {
+        no.remove();
+        nosPorId.delete(id);
+      }
+    }
+    filaArquivos.forEach((item) => {
+      let no = nosPorId.get(item.id);
+      if (!no) {
+        no = criarNoItem(item);
+        nosPorId.set(item.id, no);
+        listaArquivos.appendChild(no);
+      }
+      atualizarNoItem(item);
     });
+    atualizarResumoEBotao();
+  }
 
-    if (arquivosSelecionados.length === 0) {
+  function atualizarResumoEBotao() {
+    if (filaArquivos.length === 0) {
       resumoTotal.textContent = '';
       btnProcessar.disabled = true;
       labelBotao.textContent = 'Selecione arquivos para começar';
-    } else {
-      const totalBytes = arquivosSelecionados.reduce((soma, a) => soma + a.size, 0);
-      resumoTotal.textContent = `${arquivosSelecionados.length} arquivo(s) — ${formatarTamanho(totalBytes)} no total`;
+      return;
+    }
+
+    const pendentes = filaArquivos.filter((i) => i.status === 'pendente').length;
+    const enviando = filaArquivos.filter((i) => i.status === 'enviando').length;
+    const concluidos = filaArquivos.filter((i) => i.status === 'concluido').length;
+    const comErro = filaArquivos.filter((i) => i.status === 'erro').length;
+    const totalBytes = filaArquivos.reduce((soma, i) => soma + i.arquivo.size, 0);
+
+    const partes = [`${filaArquivos.length} arquivo(s)`, formatarTamanho(totalBytes)];
+    if (concluidos) partes.push(`${concluidos} concluído(s)`);
+    if (comErro) partes.push(`${comErro} com erro`);
+    resumoTotal.textContent = partes.join(' — ');
+
+    if (enviando > 0) {
+      btnProcessar.disabled = true;
+      labelBotao.innerHTML = `${ICONE_SPINNER}<span>Enviando arquivos…</span>`;
+    } else if (pendentes > 0) {
       btnProcessar.disabled = false;
-      labelBotao.textContent = `Processar ${arquivosSelecionados.length} arquivo(s)`;
+      labelBotao.textContent = `Processar ${pendentes} arquivo(s)`;
+    } else {
+      btnProcessar.disabled = true;
+      labelBotao.textContent = 'Selecione mais arquivos para continuar';
     }
   }
 
   function adicionarArquivos(lista) {
     esconderStatus();
     const candidatos = Array.from(lista);
-    let algumInvalido = false;
+    let motivoExtensao = false;
+    let motivoTamanho = false;
 
     for (const arquivo of candidatos) {
-      if (arquivosSelecionados.length >= MAX_ARQUIVOS) break;
+      if (filaArquivos.length >= MAX_ARQUIVOS) break;
       const ext = extensaoDe(arquivo.name);
-      if (!EXTENSOES_VALIDAS.includes(ext)) { algumInvalido = true; continue; }
-      arquivosSelecionados.push(arquivo);
+      if (!EXTENSOES_VALIDAS.includes(ext)) { motivoExtensao = true; continue; }
+      if (arquivo.size > MAX_BYTES_POR_ARQUIVO) { motivoTamanho = true; continue; }
+      filaArquivos.push({
+        id: proximoId++,
+        arquivo,
+        status: 'pendente',
+        progresso: 0,
+        mensagemErro: null,
+        blobUrl: null,
+        nomeSaida: null,
+        xhr: null,
+      });
     }
 
-    if (algumInvalido) {
+    if (motivoTamanho) {
+      mostrarStatus('erro', MENSAGEM_ARQUIVO_GRANDE);
+    } else if (motivoExtensao) {
       mostrarStatus('erro', `Alguns arquivos foram ignorados (extensão não suportada). Use: ${EXTENSOES_VALIDAS.join(', ')}.`);
     }
     renderizarLista();
   }
 
+  function removerItem(id) {
+    const indice = filaArquivos.findIndex((i) => i.id === id);
+    if (indice === -1) return;
+    const item = filaArquivos[indice];
+    if (item.status === 'enviando' && item.xhr) {
+      item.xhr.abort();
+    }
+    if (item.blobUrl) URL.revokeObjectURL(item.blobUrl);
+    const no = nosPorId.get(id);
+    if (no) {
+      no.classList.add('saindo');
+      setTimeout(() => {
+        const i2 = filaArquivos.findIndex((x) => x.id === id);
+        if (i2 !== -1) filaArquivos.splice(i2, 1);
+        renderizarLista();
+      }, 140);
+    } else {
+      filaArquivos.splice(indice, 1);
+      renderizarLista();
+    }
+  }
+
+  function tentarNovamente(id) {
+    const item = filaArquivos.find((i) => i.id === id);
+    if (!item) return;
+    item.status = 'pendente';
+    item.progresso = 0;
+    item.mensagemErro = null;
+    atualizarNoItem(item);
+    atualizarResumoEBotao();
+    dispararFila();
+  }
+
+  async function extrairErroDeBlob(blob) {
+    try {
+      const texto = await blob.text();
+      const corpo = JSON.parse(texto);
+      return corpo && corpo.detail ? corpo.detail : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function agendarDownloadAutomatico(item) {
+    const atraso = atrasoProximoDownload;
+    atrasoProximoDownload += 450;
+    setTimeout(() => {
+      if (!item.blobUrl) return;
+      const a = document.createElement('a');
+      a.href = item.blobUrl;
+      a.download = item.nomeSaida || item.arquivo.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }, atraso);
+  }
+
+  function enviarItem(item) {
+    return new Promise((resolve) => {
+      const apiUrl = (inputApiUrl.value || '').trim().replace(/\/+$/, '');
+      if (!apiUrl) {
+        item.status = 'erro';
+        item.mensagemErro = 'Preencha o endereço da API antes de processar.';
+        resolve();
+        return;
+      }
+
+      const xhr = new XMLHttpRequest();
+      item.xhr = xhr;
+      const formData = new FormData();
+      formData.append('file', item.arquivo);
+
+      xhr.open('POST', `${apiUrl}/limpar`);
+      xhr.responseType = 'blob';
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          item.progresso = Math.round((e.loaded / e.total) * 100);
+          atualizarNoItem(item);
+        }
+      });
+
+      xhr.addEventListener('load', async () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const disposicao = xhr.getResponseHeader('Content-Disposition') || '';
+          const match = disposicao.match(/filename="?([^";]+)"?/);
+          const nomeSaida = match ? match[1] : item.arquivo.name;
+          const blobUrl = URL.createObjectURL(xhr.response);
+          item.status = 'concluido';
+          item.progresso = 100;
+          item.blobUrl = blobUrl;
+          item.nomeSaida = nomeSaida;
+          atualizarNoItem(item);
+          agendarDownloadAutomatico(item);
+        } else {
+          const mensagem = await extrairErroDeBlob(xhr.response);
+          item.status = 'erro';
+          item.mensagemErro = mensagem || `Não foi possível processar o arquivo (erro ${xhr.status}).`;
+          atualizarNoItem(item);
+        }
+        resolve();
+      });
+
+      xhr.addEventListener('error', () => {
+        item.status = 'erro';
+        item.mensagemErro = 'Não foi possível enviar o arquivo. Verifique sua conexão e tente novamente.';
+        atualizarNoItem(item);
+        resolve();
+      });
+
+      xhr.addEventListener('abort', () => {
+        item.status = 'cancelado';
+        atualizarNoItem(item);
+        resolve();
+      });
+
+      xhr.addEventListener('timeout', () => {
+        item.status = 'erro';
+        item.mensagemErro = 'O envio demorou demais e foi interrompido. Tente novamente.';
+        atualizarNoItem(item);
+        resolve();
+      });
+
+      xhr.send(formData);
+    });
+  }
+
+  function dispararFila() {
+    while (emAndamento < MAX_CONCORRENCIA) {
+      const proximo = filaArquivos.find((item) => item.status === 'pendente');
+      if (!proximo) break;
+      emAndamento++;
+      proximo.status = 'enviando';
+      proximo.progresso = 0;
+      atualizarNoItem(proximo);
+      atualizarResumoEBotao();
+      enviarItem(proximo).finally(() => {
+        emAndamento--;
+        dispararFila();
+        atualizarResumoEBotao();
+      });
+    }
+  }
+
   function mostrarStatus(tipo, mensagemHtml) {
     statusBox.className = `status-box visivel ${tipo}`;
-    const icone = tipo === 'sucesso' ? ICONE_CHECK : ICONE_ALERTA;
+    const icone = tipo === 'sucesso' ? ICONE_CHECK : (tipo === 'info' ? ICONE_INFO : ICONE_ALERTA);
     statusBox.innerHTML = `${icone}<div class="conteudo">${mensagemHtml}</div>`;
   }
 
@@ -618,56 +1042,18 @@
   });
   dropzone.addEventListener('drop', (e) => { if (e.dataTransfer && e.dataTransfer.files) adicionarArquivos(e.dataTransfer.files); });
 
-  function definirCarregando(carregando) {
-    if (carregando) {
-      btnProcessar.disabled = true;
-      labelBotao.innerHTML = `${ICONE_SPINNER}<span>Processando…</span>`;
-    } else {
-      // restaura o rotulo/estado corretos conforme o que sobrou selecionado
-      // (renderizarLista() e a unica fonte de verdade pra isso).
-      renderizarLista();
-    }
-  }
-
-  btnProcessar.addEventListener('click', async () => {
-    if (arquivosSelecionados.length === 0) return;
+  btnProcessar.addEventListener('click', () => {
     const apiUrl = (inputApiUrl.value || '').trim().replace(/\/+$/, '');
     if (!apiUrl) { mostrarStatus('erro', 'Preencha o endereço da API antes de processar.'); return; }
 
+    const pendentes = filaArquivos.filter((i) => i.status === 'pendente');
+    if (pendentes.length === 0) return;
+
     esconderStatus();
-    definirCarregando(true);
-
-    const formData = new FormData();
-    arquivosSelecionados.forEach((arquivo) => formData.append('files', arquivo));
-
-    try {
-      const resp = await fetch(`${apiUrl}/limpar`, { method: 'POST', body: formData });
-
-      if (!resp.ok) {
-        let detalhe = `Erro HTTP ${resp.status}`;
-        try { const corpo = await resp.json(); if (corpo && corpo.detail) detalhe = corpo.detail; } catch (e) {}
-        mostrarStatus('erro', detalhe);
-        return;
-      }
-
-      const blob = await resp.blob();
-      const disposicao = resp.headers.get('Content-Disposition') || '';
-      const match = disposicao.match(/filename="?([^";]+)"?/);
-      const nomeArquivo = match ? match[1] : (blob.type === 'application/zip' ? 'arquivos_limpos.zip' : 'arquivo_limpo');
-
-      const urlBlob = URL.createObjectURL(blob);
-      const plural = arquivosSelecionados.length > 1;
-      mostrarStatus('sucesso', `
-        Pronto! ${plural ? 'Seus arquivos foram limpos e estão prontos' : 'Seu arquivo foi limpo e está pronto'} para baixar.
-        <br>
-        <a class="btn-download" href="${urlBlob}" download="${nomeArquivo}">${ICONE_DOWNLOAD}Baixar ${nomeArquivo}</a>
-      `);
-      arquivosSelecionados = [];
-    } catch (e) {
-      mostrarStatus('erro', `Não foi possível falar com a API em ${apiUrl}. Confirme que o endereço está correto e que o servidor está online.`);
-    } finally {
-      definirCarregando(false);
+    if (pendentes.length > 1) {
+      mostrarStatus('info', 'Os arquivos limpos serão baixados automaticamente, um por vez — nunca compactados em .zip. Se algum download não iniciar sozinho, use o botão de baixar ao lado do arquivo; alguns navegadores bloqueiam vários downloads ao mesmo tempo, então permita "downloads múltiplos" para este site se isso acontecer.');
     }
+    dispararFila();
   });
 
   renderizarLista();
