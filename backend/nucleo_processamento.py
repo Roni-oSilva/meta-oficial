@@ -40,7 +40,11 @@ FORMATO_PILLOW = {
     "webp": "WEBP",
 }
 
-TIMEOUT_FFMPEG_SEGUNDOS = 180
+# Videos de ate 30 min: copiar fluxos (-c copy) e I/O-bound; 2 GB levam
+# poucos minutos mesmo em disco lento. Folga generosa antes de abortar.
+TIMEOUT_FFMPEG_SEGUNDOS = 900
+MAX_DURACAO_VIDEO_SEGUNDOS = 30 * 60  # 30 minutos
+TIMEOUT_FFPROBE_SEGUNDOS = 30
 
 
 class ArquivoInvalidoError(Exception):
@@ -51,6 +55,10 @@ class ArquivoInvalidoError(Exception):
 class ArquivoMuitoGrandeError(Exception):
     """Levantado quando a imagem excede o limite seguro de pixels
     (possível 'bomba de descompressão')."""
+
+
+class VideoMuitoLongoError(Exception):
+    """Levantado quando o vídeo dura mais que MAX_DURACAO_VIDEO_SEGUNDOS."""
 
 
 def tipo_do_arquivo(nome_ou_extensao: str) -> str | None:
@@ -118,16 +126,82 @@ def processar_imagem(dados_brutos: bytes, extensao: str, qualidade: int = 95) ->
         raise ArquivoInvalidoError(str(e)) from e
 
 
-def processar_video(dados_brutos: bytes, extensao: str) -> bytes:
-    """
-    Remove metadados (GPS, data/hora de criação, modelo do aparelho,
-    software etc.) de um vídeo usando o FFmpeg, copiando os fluxos de
-    vídeo/áudio sem recodificar (`-c copy`) — rápido e sem nenhuma perda
-    de qualidade. O vídeo sai no mesmo container em que foi enviado
-    (.mp4 continua .mp4, .mov continua .mov).
+def duracao_do_video(caminho: str) -> float | None:
+    """Duração em segundos via ffprobe, ou None se não for possível ler."""
+    try:
+        r = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", caminho],
+            capture_output=True, timeout=TIMEOUT_FFPROBE_SEGUNDOS,
+        )
+        return float(r.stdout.decode().strip())
+    except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
+        return None
 
-    Requer o binário `ffmpeg` instalado no servidor (ver Dockerfile).
+
+def _explicar_erro_ffmpeg(detalhe: str) -> str:
+    """Traduz as mensagens mais comuns do FFmpeg para uma causa em português."""
+    d = detalhe.lower()
+    if "invalid data found" in d or "moov atom not found" in d:
+        return "O vídeo está corrompido, incompleto ou não é um MP4/MOV válido"
+    if "no space left" in d:
+        return "O servidor ficou sem espaço em disco ao processar o vídeo"
+    if "does not contain any stream" in d or "no streams" in d:
+        return "O arquivo não contém nenhuma trilha de vídeo ou áudio"
+    if "permission denied" in d:
+        return "O servidor não conseguiu gravar o arquivo temporário"
+    if "could not find tag for codec" in d or "codec not currently supported in container" in d:
+        return "O vídeo usa um codec que não cabe nesse formato de arquivo sem recodificar"
+    return "Não foi possível processar o vídeo"
+
+
+def processar_video_arquivo(caminho_entrada: str, caminho_saida: str, max_duracao: float | None = MAX_DURACAO_VIDEO_SEGUNDOS) -> None:
     """
+    Remove metadados do vídeo em `caminho_entrada` e grava o resultado em
+    `caminho_saida`, trabalhando só com arquivos em disco (nunca carrega o
+    vídeo inteiro na memória — essencial para arquivos de vários GB).
+    Copia os fluxos sem recodificar (`-c copy`). Se `max_duracao` for
+    informado e o vídeo for mais longo, levanta VideoMuitoLongoError.
+    """
+    if max_duracao is not None:
+        duracao = duracao_do_video(caminho_entrada)
+        if duracao is not None and duracao > max_duracao:
+            raise VideoMuitoLongoError(duracao)
+
+    comando = [
+        "ffmpeg", "-y",
+        "-i", caminho_entrada,
+        "-map_metadata", "-1",   # descarta todos os metadados do arquivo original
+        "-fflags", "+bitexact",  # não deixa o proprio ffmpeg escrever nada extra
+        "-movflags", "+faststart",
+        "-c", "copy",             # copia audio/video sem recodificar (rapido, sem perda)
+        caminho_saida,
+    ]
+
+    try:
+        resultado = subprocess.run(
+            comando,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=TIMEOUT_FFMPEG_SEGUNDOS,
+        )
+    except FileNotFoundError as e:
+        raise ArquivoInvalidoError(
+            "FFmpeg não está instalado no servidor — instale-o para processar vídeos."
+        ) from e
+    except subprocess.TimeoutExpired as e:
+        raise ArquivoInvalidoError("O vídeo demorou demais para processar (tempo esgotado).") from e
+
+    if resultado.returncode != 0 or not os.path.exists(caminho_saida):
+        mensagem = resultado.stderr.decode("utf-8", errors="ignore").strip().splitlines()
+        detalhe = mensagem[-1] if mensagem else "falha desconhecida do FFmpeg."
+        raise ArquivoInvalidoError(f"{_explicar_erro_ffmpeg(detalhe)} (detalhe técnico: {detalhe})")
+
+
+def processar_video(dados_brutos: bytes, extensao: str) -> bytes:
+    """Versão em memória de `processar_video_arquivo` (bytes -> bytes),
+    mantida para vídeos pequenos e para os testes. Sem limite de duração
+    (o limite é aplicado pela API, que usa `processar_video_arquivo`)."""
     extensao = extensao.lower().lstrip(".")
 
     with tempfile.TemporaryDirectory(prefix="limpeza_video_") as pasta:
@@ -137,33 +211,7 @@ def processar_video(dados_brutos: bytes, extensao: str) -> bytes:
         with open(caminho_entrada, "wb") as f:
             f.write(dados_brutos)
 
-        comando = [
-            "ffmpeg", "-y",
-            "-i", caminho_entrada,
-            "-map_metadata", "-1",   # descarta todos os metadados do arquivo original
-            "-fflags", "+bitexact",  # não deixa o proprio ffmpeg escrever nada extra
-            "-movflags", "+faststart",
-            "-c", "copy",             # copia audio/video sem recodificar (rapido, sem perda)
-            caminho_saida,
-        ]
-
-        try:
-            resultado = subprocess.run(
-                comando,
-                capture_output=True,
-                timeout=TIMEOUT_FFMPEG_SEGUNDOS,
-            )
-        except FileNotFoundError as e:
-            raise ArquivoInvalidoError(
-                "FFmpeg não está instalado no servidor — instale-o para processar vídeos."
-            ) from e
-        except subprocess.TimeoutExpired as e:
-            raise ArquivoInvalidoError("O vídeo demorou demais para processar (tempo esgotado).") from e
-
-        if resultado.returncode != 0 or not os.path.exists(caminho_saida):
-            mensagem = resultado.stderr.decode("utf-8", errors="ignore").strip().splitlines()
-            detalhe = mensagem[-1] if mensagem else "falha desconhecida do FFmpeg."
-            raise ArquivoInvalidoError(f"Não foi possível processar o vídeo: {detalhe}")
+        processar_video_arquivo(caminho_entrada, caminho_saida, max_duracao=None)
 
         with open(caminho_saida, "rb") as f:
             return f.read()

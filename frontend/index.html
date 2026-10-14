@@ -412,7 +412,7 @@
         <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
       </svg>
       <p class="titulo">Arraste suas fotos ou vídeos aqui, ou clique para escolher</p>
-      <p class="sub">JPG, PNG, WEBP, MP4 ou MOV — até 10 arquivos, até 300 MB por arquivo</p>
+      <p class="sub">JPG, PNG, WEBP, MP4 ou MOV — até 10 arquivos — fotos até 300 MB, vídeos até 2 GB e 30 min</p>
     </div>
 
     <div class="lista-arquivos" id="listaArquivos"></div>
@@ -616,9 +616,11 @@
   const EXTENSOES_VIDEO = ['mp4', 'mov'];
   const EXTENSOES_VALIDAS = [...EXTENSOES_IMAGEM, ...EXTENSOES_VIDEO];
   const MAX_ARQUIVOS = 10;
-  const MAX_BYTES_POR_ARQUIVO = 300 * 1024 * 1024;
+  const MAX_BYTES_POR_ARQUIVO = 300 * 1024 * 1024; // fotos
+  const MAX_BYTES_VIDEO = 2 * 1024 * 1024 * 1024; // vídeos
   const MAX_CONCORRENCIA = 3;
   const MENSAGEM_ARQUIVO_GRANDE = 'Arquivo muito grande. O tamanho máximo permitido é 300 MB.';
+  const MENSAGEM_VIDEO_GRANDE = 'Vídeo muito grande. O tamanho máximo permitido é 2 GB.';
 
   let filaArquivos = [];
   let proximoId = 1;
@@ -845,6 +847,22 @@
     }
   }
 
+  // Traduz o código HTTP numa causa legível quando o servidor não mandou
+  // uma mensagem própria (ex.: erro vindo do proxy do Render, não da API).
+  function explicarStatusHttp(status) {
+    const causas = {
+      400: 'O servidor recusou o arquivo (requisição inválida).',
+      404: 'Endereço da API não encontrado — confira o campo "Endereço da API".',
+      413: 'O servidor recusou o arquivo por ser grande demais.',
+      500: 'Erro interno no servidor ao processar o arquivo.',
+      502: 'O servidor está fora do ar ou reiniciando (erro 502). Aguarde um pouco e tente de novo.',
+      503: 'O servidor está indisponível ou acordando (erro 503). Aguarde alguns segundos e tente de novo.',
+      504: 'O servidor demorou demais para responder (erro 504) — o vídeo pode ser grande demais para o plano atual.',
+      507: 'O servidor ficou sem espaço para processar o arquivo.',
+    };
+    return `${causas[status] || 'Não foi possível processar o arquivo.'} (código ${status})`;
+  }
+
   function adicionarArquivos(lista) {
     esconderStatus();
     const candidatos = Array.from(lista);
@@ -855,7 +873,11 @@
       if (filaArquivos.length >= MAX_ARQUIVOS) break;
       const ext = extensaoDe(arquivo.name);
       if (!EXTENSOES_VALIDAS.includes(ext)) { motivoExtensao = true; continue; }
-      if (arquivo.size > MAX_BYTES_POR_ARQUIVO) { motivoTamanho = true; continue; }
+      const ehVideo = tipoDoArquivo(arquivo.name) === 'video';
+      if (arquivo.size > (ehVideo ? MAX_BYTES_VIDEO : MAX_BYTES_POR_ARQUIVO)) {
+        motivoTamanho = ehVideo ? 'video' : 'imagem';
+        continue;
+      }
       filaArquivos.push({
         id: proximoId++,
         arquivo,
@@ -869,7 +891,7 @@
     }
 
     if (motivoTamanho) {
-      mostrarStatus('erro', MENSAGEM_ARQUIVO_GRANDE);
+      mostrarStatus('erro', motivoTamanho === 'video' ? MENSAGEM_VIDEO_GRANDE : MENSAGEM_ARQUIVO_GRANDE);
     } else if (motivoExtensao) {
       mostrarStatus('erro', `Alguns arquivos foram ignorados (extensão não suportada). Use: ${EXTENSOES_VALIDAS.join(', ')}.`);
     }
@@ -913,7 +935,7 @@
     try {
       const texto = await blob.text();
       const corpo = JSON.parse(texto);
-      return corpo && corpo.detail ? corpo.detail : null;
+      return corpo && typeof corpo.detail === 'string' ? corpo.detail : null;
     } catch (e) {
       return null;
     }
@@ -973,7 +995,7 @@
         } else {
           const mensagem = await extrairErroDeBlob(xhr.response);
           item.status = 'erro';
-          item.mensagemErro = mensagem || `Não foi possível processar o arquivo (erro ${xhr.status}).`;
+          item.mensagemErro = mensagem || explicarStatusHttp(xhr.status);
           atualizarNoItem(item);
         }
         resolve();
@@ -981,7 +1003,9 @@
 
       xhr.addEventListener('error', () => {
         item.status = 'erro';
-        item.mensagemErro = 'Não foi possível enviar o arquivo. Verifique sua conexão e tente novamente.';
+        item.mensagemErro = item.progresso >= 100
+          ? 'A conexão caiu enquanto o servidor processava o vídeo (o envio terminou, mas a resposta não chegou). O servidor pode ter ficado sem memória/disco ou reiniciado. Tente novamente.'
+          : `A conexão caiu durante o envio (parou em ${item.progresso}%). Verifique sua internet. Se o servidor estava "dormindo" (plano gratuito), aguarde alguns segundos e tente novamente.`;
         atualizarNoItem(item);
         resolve();
       });
