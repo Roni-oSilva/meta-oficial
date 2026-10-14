@@ -264,7 +264,7 @@ def teste_12_video_tem_metadados_removidos_e_nome_preservado():
 
 
 def teste_13_limites_de_video_tamanho_e_duracao():
-    print("\n[Teste 13] Vídeo acima do limite de tamanho (3 GB) ou de duração (30 min) é rejeitado")
+    print("\n[Teste 13] Vídeo acima do limite de tamanho (2 GB) ou de duração (30 min) é rejeitado")
     if not _ffmpeg_disponivel():
         print("  [PULADO] ffmpeg não está instalado neste ambiente")
         return
@@ -275,7 +275,7 @@ def teste_13_limites_de_video_tamanho_e_duracao():
     try:
         resp = client.post("/limpar", files={"file": ("grande.mp4", dados_video, "video/mp4")})
         checar(resp.status_code == 400, f"vídeo grande demais retorna 400 (obtido: {resp.status_code})")
-        checar(resp.json().get("detail") == "Vídeo muito grande. O tamanho máximo permitido é 3 GB.", "mensagem de tamanho exata")
+        checar(resp.json().get("detail") == "Vídeo muito grande. O tamanho máximo permitido é 2 GB.", "mensagem de tamanho exata")
     finally:
         app_module.MAX_BYTES_VIDEO = limite_original
 

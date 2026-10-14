@@ -83,7 +83,7 @@ app.add_middleware(
 
 # Limite avaliado por arquivo (não somado entre arquivos de um mesmo lote).
 MAX_BYTES_POR_ARQUIVO = 300 * 1024 * 1024  # 300 MB (fotos)
-MAX_BYTES_VIDEO = 3 * 1024 * 1024 * 1024  # 3 GB (vídeos; duração máx. 30 min no núcleo)
+MAX_BYTES_VIDEO = 2 * 1024 * 1024 * 1024  # 2 GB (vídeos; duração máx. 30 min no núcleo)
 TAMANHO_BLOCO_LEITURA = 1024 * 1024  # 1 MB por vez — evita segurar o arquivo inteiro em memória sem necessidade
 
 MEDIA_TYPES = {
@@ -96,7 +96,7 @@ MEDIA_TYPES = {
 }
 
 MENSAGEM_ARQUIVO_GRANDE = "Arquivo muito grande. O tamanho máximo permitido é 300 MB."
-MENSAGEM_VIDEO_GRANDE = "Vídeo muito grande. O tamanho máximo permitido é 3 GB."
+MENSAGEM_VIDEO_GRANDE = "Vídeo muito grande. O tamanho máximo permitido é 2 GB."
 MENSAGEM_VIDEO_LONGO = "Vídeo muito longo. A duração máxima permitida é 30 minutos."
 
 
@@ -114,7 +114,7 @@ def _extensao_valida(nome_original: str | None) -> bool:
 
 async def _salvar_com_limite(arquivo: UploadFile, destino: str, limite_bytes: int) -> int:
     """Grava o upload em disco em blocos, abortando ao passar do limite.
-    Usado para vídeos: nunca segura o arquivo (até 3 GB) na memória."""
+    Usado para vídeos: nunca segura o arquivo (até 2 GB) na memória."""
     total = 0
     with open(destino, "wb") as f:
         while True:

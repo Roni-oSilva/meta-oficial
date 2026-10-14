@@ -40,7 +40,7 @@ FORMATO_PILLOW = {
     "webp": "WEBP",
 }
 
-# Videos de ate 30 min: copiar fluxos (-c copy) e I/O-bound; 3 GB levam
+# Videos de ate 30 min: copiar fluxos (-c copy) e I/O-bound; 2 GB levam
 # poucos minutos mesmo em disco lento. Folga generosa antes de abortar.
 TIMEOUT_FFMPEG_SEGUNDOS = 900
 MAX_DURACAO_VIDEO_SEGUNDOS = 30 * 60  # 30 minutos

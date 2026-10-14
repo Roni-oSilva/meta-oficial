@@ -199,7 +199,7 @@ curl -X POST "https://SEU-BACKEND/limpar" \
   -o video.mp4
 ```
 
-**Limites:** fotos até 300 MB; **vídeos até 3 GB e 30 minutos de
+**Limites:** fotos até 300 MB; **vídeos até 2 GB e 30 minutos de
 duração** (cada arquivo é avaliado individualmente). Vídeos são gravados
 em disco em blocos, processados pelo FFmpeg sem recodificar e devolvidos
 em streaming — nunca ficam inteiros na memória. Acima do limite a API
@@ -215,10 +215,10 @@ limite da API em si.
   caso comum de vídeo gravado no celular. Não é uma ferramenta forense; um
   vídeo com uma trilha de telemetria separada (ex: câmeras de ação tipo
   GoPro) pode manter dados nessa trilha específica.
-- Vídeos de até 3 GB precisam de **espaço em disco** no servidor (entrada
+- Vídeos de até 2 GB precisam de **espaço em disco** no servidor (entrada
   + saída ≈ 2× o tamanho, temporário). O disco efêmero do plano gratuito
   do Render é pequeno e pode não comportar isso, e o proxy pode derrubar
-  uploads muito longos — pra usar o limite de 3 GB de verdade, use um
+  uploads muito longos — pra usar o limite de 2 GB de verdade, use um
   plano pago. No navegador, o download de um vídeo desse tamanho também
   passa pela memória do site (blob).
 - Downloads automáticos de vários arquivos seguidos podem, em alguns
