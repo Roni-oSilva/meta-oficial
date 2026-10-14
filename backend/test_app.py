@@ -263,6 +263,34 @@ def teste_12_video_tem_metadados_removidos_e_nome_preservado():
     checar(not _tem_metadado(resp.content, "creation_time"), "data de criação removida do vídeo devolvido")
 
 
+def teste_13_limites_de_video_tamanho_e_duracao():
+    print("\n[Teste 13] Vídeo acima do limite de tamanho (3 GB) ou de duração (30 min) é rejeitado")
+    if not _ffmpeg_disponivel():
+        print("  [PULADO] ffmpeg não está instalado neste ambiente")
+        return
+    dados_video = video_com_metadados_bytes()
+
+    limite_original = app_module.MAX_BYTES_VIDEO
+    app_module.MAX_BYTES_VIDEO = 1024  # 1 KB, só para este teste
+    try:
+        resp = client.post("/limpar", files={"file": ("grande.mp4", dados_video, "video/mp4")})
+        checar(resp.status_code == 400, f"vídeo grande demais retorna 400 (obtido: {resp.status_code})")
+        checar(resp.json().get("detail") == "Vídeo muito grande. O tamanho máximo permitido é 3 GB.", "mensagem de tamanho exata")
+    finally:
+        app_module.MAX_BYTES_VIDEO = limite_original
+
+    import nucleo_processamento as nucleo
+    original = nucleo.MAX_DURACAO_VIDEO_SEGUNDOS
+    duracao_orig = nucleo.processar_video_arquivo.__defaults__
+    nucleo.processar_video_arquivo.__defaults__ = (0.01,)  # qualquer video passa de 0,01 s
+    try:
+        resp = client.post("/limpar", files={"file": ("longo.mp4", dados_video, "video/mp4")})
+        checar(resp.status_code == 400, f"vídeo longo demais retorna 400 (obtido: {resp.status_code})")
+        checar(resp.json().get("detail") == "Vídeo muito longo. A duração máxima permitida é 30 minutos.", "mensagem de duração exata")
+    finally:
+        nucleo.processar_video_arquivo.__defaults__ = duracao_orig
+
+
 if __name__ == "__main__":
     teste_1_raiz_responde()
     teste_2_arquivo_unico_mantem_formato_e_dimensoes()
@@ -276,6 +304,7 @@ if __name__ == "__main__":
     teste_10_extensao_nao_suportada_e_rejeitada()
     teste_11_nenhum_arquivo_enviado()
     teste_12_video_tem_metadados_removidos_e_nome_preservado()
+    teste_13_limites_de_video_tamanho_e_duracao()
 
     print("\n" + "=" * 60)
     if falhas:

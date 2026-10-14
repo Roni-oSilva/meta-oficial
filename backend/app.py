@@ -46,17 +46,23 @@ Requisitos: fastapi, uvicorn, python-multipart, Pillow, e o binário
 from __future__ import annotations
 
 import os
+import shutil
+import tempfile
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
+from starlette.background import BackgroundTask
 
 from nucleo_processamento import (
     EXTENSOES_VALIDAS,
     ArquivoInvalidoError,
     ArquivoMuitoGrandeError,
+    EXTENSOES_VIDEO,
+    VideoMuitoLongoError,
     processar_arquivo,
+    processar_video_arquivo,
 )
 
 app = FastAPI(title="Metadata Clean API")
@@ -76,7 +82,8 @@ app.add_middleware(
 )
 
 # Limite avaliado por arquivo (não somado entre arquivos de um mesmo lote).
-MAX_BYTES_POR_ARQUIVO = 300 * 1024 * 1024  # 300 MB
+MAX_BYTES_POR_ARQUIVO = 300 * 1024 * 1024  # 300 MB (fotos)
+MAX_BYTES_VIDEO = 3 * 1024 * 1024 * 1024  # 3 GB (vídeos; duração máx. 30 min no núcleo)
 TAMANHO_BLOCO_LEITURA = 1024 * 1024  # 1 MB por vez — evita segurar o arquivo inteiro em memória sem necessidade
 
 MEDIA_TYPES = {
@@ -89,6 +96,8 @@ MEDIA_TYPES = {
 }
 
 MENSAGEM_ARQUIVO_GRANDE = "Arquivo muito grande. O tamanho máximo permitido é 300 MB."
+MENSAGEM_VIDEO_GRANDE = "Vídeo muito grande. O tamanho máximo permitido é 3 GB."
+MENSAGEM_VIDEO_LONGO = "Vídeo muito longo. A duração máxima permitida é 30 minutos."
 
 
 class TamanhoExcedidoError(Exception):
@@ -101,6 +110,22 @@ def _extensao(nome_original: str | None) -> str:
 
 def _extensao_valida(nome_original: str | None) -> bool:
     return bool(nome_original) and _extensao(nome_original) in EXTENSOES_VALIDAS
+
+
+async def _salvar_com_limite(arquivo: UploadFile, destino: str, limite_bytes: int) -> int:
+    """Grava o upload em disco em blocos, abortando ao passar do limite.
+    Usado para vídeos: nunca segura o arquivo (até 3 GB) na memória."""
+    total = 0
+    with open(destino, "wb") as f:
+        while True:
+            pedaco = await arquivo.read(TAMANHO_BLOCO_LEITURA)
+            if not pedaco:
+                break
+            total += len(pedaco)
+            if total > limite_bytes:
+                raise TamanhoExcedidoError()
+            f.write(pedaco)
+    return total
 
 
 async def _ler_com_limite(arquivo: UploadFile, limite_bytes: int) -> bytes:
@@ -127,8 +152,45 @@ async def raiz():
         "descricao": "Remove metadados (EXIF/GPS/câmera/data) de fotos e vídeos, mantendo formato, dimensões, qualidade e nome originais.",
         "endpoint": "POST /limpar (um arquivo por requisição, campo 'file')",
         "extensoes_aceitas": list(EXTENSOES_VALIDAS),
-        "limites": {"max_bytes_por_arquivo": MAX_BYTES_POR_ARQUIVO},
+        "limites": {
+            "max_bytes_por_arquivo": MAX_BYTES_POR_ARQUIVO,
+            "max_bytes_video": MAX_BYTES_VIDEO,
+            "max_duracao_video_segundos": 30 * 60,
+        },
     }
+
+
+async def _limpar_video(file: UploadFile, ext: str):
+    """Vídeo: upload -> disco -> ffmpeg -> disco -> FileResponse (streaming).
+    A pasta temporária é apagada depois que a resposta termina de ser enviada."""
+    pasta = tempfile.mkdtemp(prefix="limpeza_video_")
+    entregue = False
+    try:
+        entrada = os.path.join(pasta, f"entrada.{ext}")
+        saida = os.path.join(pasta, f"saida.{ext}")
+        try:
+            total = await _salvar_com_limite(file, entrada, MAX_BYTES_VIDEO)
+        except TamanhoExcedidoError:
+            raise HTTPException(status_code=400, detail=MENSAGEM_VIDEO_GRANDE)
+        if total == 0:
+            raise HTTPException(status_code=400, detail="O arquivo enviado está vazio.")
+        try:
+            await run_in_threadpool(processar_video_arquivo, entrada, saida)
+        except VideoMuitoLongoError:
+            raise HTTPException(status_code=400, detail=MENSAGEM_VIDEO_LONGO)
+        except ArquivoInvalidoError as e:
+            raise HTTPException(status_code=400, detail=f"'{file.filename}' não pôde ser processado: {e}")
+        os.remove(entrada)  # libera disco antes de enviar a resposta
+        entregue = True
+        return FileResponse(
+            saida,
+            media_type=MEDIA_TYPES.get(ext, "application/octet-stream"),
+            headers={"Content-Disposition": f'attachment; filename="{file.filename}"'},
+            background=BackgroundTask(shutil.rmtree, pasta, ignore_errors=True),
+        )
+    finally:
+        if not entregue:
+            shutil.rmtree(pasta, ignore_errors=True)
 
 
 @app.post("/limpar")
@@ -149,6 +211,10 @@ async def limpar_arquivo(file: UploadFile = File(...)):
             detail=f"Extensão não suportada para '{file.filename}'. Use: {', '.join(EXTENSOES_VALIDAS)}.",
         )
 
+    ext = _extensao(file.filename)
+    if ext in EXTENSOES_VIDEO:
+        return await _limpar_video(file, ext)
+
     try:
         dados = await _ler_com_limite(file, MAX_BYTES_POR_ARQUIVO)
     except TamanhoExcedidoError:
@@ -157,7 +223,6 @@ async def limpar_arquivo(file: UploadFile = File(...)):
     if not dados:
         raise HTTPException(status_code=400, detail="O arquivo enviado está vazio.")
 
-    ext = _extensao(file.filename)
     try:
         arquivo_limpo, _tipo = await run_in_threadpool(processar_arquivo, dados, ext)
     except ArquivoInvalidoError as e:

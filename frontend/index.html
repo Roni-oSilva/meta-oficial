@@ -412,7 +412,7 @@
         <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
       </svg>
       <p class="titulo">Arraste suas fotos ou vídeos aqui, ou clique para escolher</p>
-      <p class="sub">JPG, PNG, WEBP, MP4 ou MOV — até 10 arquivos, até 300 MB por arquivo</p>
+      <p class="sub">JPG, PNG, WEBP, MP4 ou MOV — até 10 arquivos — fotos até 300 MB, vídeos até 3 GB e 30 min</p>
     </div>
 
     <div class="lista-arquivos" id="listaArquivos"></div>
@@ -616,9 +616,11 @@
   const EXTENSOES_VIDEO = ['mp4', 'mov'];
   const EXTENSOES_VALIDAS = [...EXTENSOES_IMAGEM, ...EXTENSOES_VIDEO];
   const MAX_ARQUIVOS = 10;
-  const MAX_BYTES_POR_ARQUIVO = 300 * 1024 * 1024;
+  const MAX_BYTES_POR_ARQUIVO = 300 * 1024 * 1024; // fotos
+  const MAX_BYTES_VIDEO = 3 * 1024 * 1024 * 1024; // vídeos
   const MAX_CONCORRENCIA = 3;
   const MENSAGEM_ARQUIVO_GRANDE = 'Arquivo muito grande. O tamanho máximo permitido é 300 MB.';
+  const MENSAGEM_VIDEO_GRANDE = 'Vídeo muito grande. O tamanho máximo permitido é 3 GB.';
 
   let filaArquivos = [];
   let proximoId = 1;
@@ -855,7 +857,11 @@
       if (filaArquivos.length >= MAX_ARQUIVOS) break;
       const ext = extensaoDe(arquivo.name);
       if (!EXTENSOES_VALIDAS.includes(ext)) { motivoExtensao = true; continue; }
-      if (arquivo.size > MAX_BYTES_POR_ARQUIVO) { motivoTamanho = true; continue; }
+      const ehVideo = tipoDoArquivo(arquivo.name) === 'video';
+      if (arquivo.size > (ehVideo ? MAX_BYTES_VIDEO : MAX_BYTES_POR_ARQUIVO)) {
+        motivoTamanho = ehVideo ? 'video' : 'imagem';
+        continue;
+      }
       filaArquivos.push({
         id: proximoId++,
         arquivo,
@@ -869,7 +875,7 @@
     }
 
     if (motivoTamanho) {
-      mostrarStatus('erro', MENSAGEM_ARQUIVO_GRANDE);
+      mostrarStatus('erro', motivoTamanho === 'video' ? MENSAGEM_VIDEO_GRANDE : MENSAGEM_ARQUIVO_GRANDE);
     } else if (motivoExtensao) {
       mostrarStatus('erro', `Alguns arquivos foram ignorados (extensão não suportada). Use: ${EXTENSOES_VALIDAS.join(', ')}.`);
     }
