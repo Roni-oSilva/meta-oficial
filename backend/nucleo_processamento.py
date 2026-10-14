@@ -139,6 +139,22 @@ def duracao_do_video(caminho: str) -> float | None:
         return None
 
 
+def _explicar_erro_ffmpeg(detalhe: str) -> str:
+    """Traduz as mensagens mais comuns do FFmpeg para uma causa em português."""
+    d = detalhe.lower()
+    if "invalid data found" in d or "moov atom not found" in d:
+        return "O vídeo está corrompido, incompleto ou não é um MP4/MOV válido"
+    if "no space left" in d:
+        return "O servidor ficou sem espaço em disco ao processar o vídeo"
+    if "does not contain any stream" in d or "no streams" in d:
+        return "O arquivo não contém nenhuma trilha de vídeo ou áudio"
+    if "permission denied" in d:
+        return "O servidor não conseguiu gravar o arquivo temporário"
+    if "could not find tag for codec" in d or "codec not currently supported in container" in d:
+        return "O vídeo usa um codec que não cabe nesse formato de arquivo sem recodificar"
+    return "Não foi possível processar o vídeo"
+
+
 def processar_video_arquivo(caminho_entrada: str, caminho_saida: str, max_duracao: float | None = MAX_DURACAO_VIDEO_SEGUNDOS) -> None:
     """
     Remove metadados do vídeo em `caminho_entrada` e grava o resultado em
@@ -179,7 +195,7 @@ def processar_video_arquivo(caminho_entrada: str, caminho_saida: str, max_duraca
     if resultado.returncode != 0 or not os.path.exists(caminho_saida):
         mensagem = resultado.stderr.decode("utf-8", errors="ignore").strip().splitlines()
         detalhe = mensagem[-1] if mensagem else "falha desconhecida do FFmpeg."
-        raise ArquivoInvalidoError(f"Não foi possível processar o vídeo: {detalhe}")
+        raise ArquivoInvalidoError(f"{_explicar_erro_ffmpeg(detalhe)} (detalhe técnico: {detalhe})")
 
 
 def processar_video(dados_brutos: bytes, extensao: str) -> bytes:

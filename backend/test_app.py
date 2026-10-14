@@ -291,6 +291,29 @@ def teste_13_limites_de_video_tamanho_e_duracao():
         nucleo.processar_video_arquivo.__defaults__ = duracao_orig
 
 
+def teste_14_erro_inesperado_devolve_causa_em_portugues():
+    print("\n[Teste 14] Falha inesperada no servidor devolve a causa (e não um erro genérico)")
+    original = app_module.processar_arquivo
+
+    def _estoura_disco(*a, **k):
+        raise OSError(28, "No space left on device")
+
+    def _estoura_outro(*a, **k):
+        raise RuntimeError("falha qualquer")
+
+    try:
+        app_module.processar_arquivo = _estoura_disco
+        resp = client.post("/limpar", files={"file": ("a.jpg", imagem_bytes(), "image/jpeg")})
+        checar(resp.status_code == 507 and "espaço em disco" in resp.json().get("detail", ""), f"disco cheio explicado (obtido: {resp.status_code} {resp.text[:120]})")
+
+        app_module.processar_arquivo = _estoura_outro
+        resp = client.post("/limpar", files={"file": ("a.jpg", imagem_bytes(), "image/jpeg")})
+        d = resp.json().get("detail", "")
+        checar(resp.status_code == 500 and "RuntimeError" in d and "a.jpg" in d, f"erro genérico cita arquivo e tipo do erro (obtido: {d})")
+    finally:
+        app_module.processar_arquivo = original
+
+
 if __name__ == "__main__":
     teste_1_raiz_responde()
     teste_2_arquivo_unico_mantem_formato_e_dimensoes()
@@ -305,6 +328,7 @@ if __name__ == "__main__":
     teste_11_nenhum_arquivo_enviado()
     teste_12_video_tem_metadados_removidos_e_nome_preservado()
     teste_13_limites_de_video_tamanho_e_duracao()
+    teste_14_erro_inesperado_devolve_causa_em_portugues()
 
     print("\n" + "=" * 60)
     if falhas:

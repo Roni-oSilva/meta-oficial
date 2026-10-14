@@ -193,8 +193,30 @@ async def _limpar_video(file: UploadFile, ext: str):
             shutil.rmtree(pasta, ignore_errors=True)
 
 
+def _erro_inesperado(e: Exception, nome: str) -> HTTPException:
+    """Converte qualquer falha não prevista numa resposta com a causa em
+    português. Precisa ser feito aqui (e não num handler global) para que a
+    resposta ainda passe pelo CORS — senão o navegador só mostra 'erro de
+    rede' e esconde o motivo real."""
+    if isinstance(e, OSError) and e.errno == 28:  # ENOSPC
+        return HTTPException(status_code=507, detail="O servidor ficou sem espaço em disco para processar este arquivo. Tente um arquivo menor ou tente novamente mais tarde.")
+    if isinstance(e, MemoryError):
+        return HTTPException(status_code=507, detail="O servidor ficou sem memória para processar este arquivo. Tente um arquivo menor.")
+    print(f"[erro inesperado] {nome}: {type(e).__name__}: {e}", flush=True)
+    return HTTPException(status_code=500, detail=f"Erro interno do servidor ao processar '{nome}' ({type(e).__name__}). Tente novamente; se continuar, avise o suporte com essa mensagem.")
+
+
 @app.post("/limpar")
 async def limpar_arquivo(file: UploadFile = File(...)):
+    try:
+        return await _limpar_arquivo(file)
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001 — queremos devolver a causa, qualquer que seja
+        raise _erro_inesperado(e, file.filename or "arquivo")
+
+
+async def _limpar_arquivo(file: UploadFile):
     """
     Processa um único arquivo por requisição e devolve o arquivo limpo
     (mesmo nome, mesma extensão, mesmo formato) pronto para download.
